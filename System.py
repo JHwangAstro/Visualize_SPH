@@ -5,7 +5,7 @@ import Calcs
 
 class System:
 
-  def __init__(self,Planets,Star,):
+  def __init__(self,Planets,Star):
     self.Particles = Particles
 
     self.M = np.sum([Particles[i].m for i in range(len(Particles))])
