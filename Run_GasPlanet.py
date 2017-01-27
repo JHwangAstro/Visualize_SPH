@@ -2,76 +2,102 @@
 
 # Input:  *.sph files from StarCrash
 # Output: visualization of the data of the system
+# Run_GasPlanet.py (SPH Visualization)
 
-# example command
-# python Run_GasPlanet.py -n 1 -r 'RelaxationRuns/Kepler36b_0.111AU/'
-# python Run_GasPlanet.py -n 2 -r 'Collisions/Kepler36/Run124/'
+# example command to run analysis on relaxation calculation
+# python Run_GasPlanet.py -n 1 -d 'RelaxationRuns/Kepler36b_0.111AU/'
+# example command to run analysis on collision calculation
+# python Run_GasPlanet.py -n 2 -d 'Collisions/Kepler36a/Run049/'
 
-#_________________________________________________________________PARAMETERS
-
-import Analyze                      #Loops through each snapshot, reads and plots the data
-from time import clock              #Calculate time spent
 import os                           #For creating folders
 import argparse                     #Reading in arguments
 import sys
+from run import Run
 
-#Default values for input arguments
-base  = "/projects/"                   #sets base directory
-rund  = "Collisions/Run17/"                             #sets run directory
-numss = -1#201                                              #number of snapshots
-num_p = 2                                                       #number of planets
-nstart= 0
-restart=0                                                       #Read restart file? (1=yes)
-num_p2 = 0
 
-parser = argparse.ArgumentParser()
-parser.add_argument("-n","--nplanets"   ,dest="num_p" ,default=num_p ,help="Number of Planets"  ,type=int)
-parser.add_argument("-m","--nplanets2"  ,dest="num_p2",default=num_p2,help="Number of non-SPH Planets"  ,type=int)
-parser.add_argument("-s","--nsnapshots" ,dest="numss" ,default=numss ,help="Number of Snapshots",type=int)
-parser.add_argument("-k","--numskip"    ,dest="nskip" ,default=1     ,help="Snapshot Interval"  ,type=int)
-parser.add_argument("-z","--startnum"   ,dest="nstart",default=nstart,help="Starting Snapshot",  type=int)
-parser.add_argument("-b","--projectdir" ,dest="bdir"  ,default=base  ,help="Project Directory")
-parser.add_argument("-r","--rundir"     ,dest="rdir"  ,default=rund  ,help="Run Directory")
+#Main function
+def main():
 
-args = parser.parse_args()
-
-sdir  = args.bdir + args.rdir# + "SS/"                          #sets folder for snapshots
-idir  = args.bdir + args.rdir + 'IMG/'                          #sets folder for images
-fdir  = args.bdir + args.rdir + 'Final/'                        #sets folder for final plots
-mdir  = '/projects/b1011/jhwang/Mercury/Runs_Kepler36/base'     #directory for base mercury folder
-
-#If numss is default, then automatically find number of snapshots
-if args.numss < 0:
-  args.numss = 0
-  fname = sdir + 'out000' + repr(args.numss) + '.sph'
-  if args.numss >= 10:   fname = sdir + 'out00' + repr(args.numss) + '.sph'
-  if args.numss >= 100:  fname = sdir + 'out0'  + repr(args.numss) + '.sph'
-  if args.numss >= 1000: fname = sdir + 'out'   + repr(args.numss) + '.sph'
-  while os.path.exists(fname):
-    args.numss += args.nskip
-    fname = sdir + 'out000' + repr(args.numss) + '.sph'
-    if args.numss >= 10:   fname = sdir + 'out00' + repr(args.numss) + '.sph'
-    if args.numss >= 100:  fname = sdir + 'out0'  + repr(args.numss) + '.sph'
-    if args.numss >= 1000: fname = sdir + 'out'   + repr(args.numss) + '.sph'
-  print 'there are ', args.numss, ' snapshots in this run'
-
-if not os.path.exists(sdir):
-  print 'source directory does not exist'
-  sys.exit
-if not os.path.exists(idir): os.makedirs(idir)
-if not os.path.exists(fdir): os.makedirs(fdir)
-
-if args.num_p == 2: Analyze.Planet_Planet_Collision(sdir,idir,fdir,mdir,nstart,args.numss/args.nskip,args.nskip,restart,args.num_p2)
-if args.num_p == 1: Analyze.Planet_Profile(sdir,idir,fdir,args.numss)
+    args = getArgs()
+    run = Run(args)
 
 
 
+#Creates the input arguments for the analysis
+def getArgs():
+
+    # Default values for input arguments
+    base    = "./"                 #sets base directory
+    rund    = "Collisions/Kepler36a/Run049/"                        #sets run directory
+    numss   = -1                                                    #number of snapshots
+    num_p   = 2                                                     #number of planets
+    nstart  = 0                                                     #starting snapshot
+    restart = 0                                                     #Read restart file? (1=yes)
+    num_p2  = 0
+    defaultDir = base
+    mdir    = './'   #directory for base mercury folder
+    rname   = 'sph.restart_analysis'                                #restart file name
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-n", "--nplanets",  dest="num_p",    default=num_p,  type = int, help="Number of Planets")
+    parser.add_argument("-m", "--nplanets2", dest="num_p2",   default=num_p2, type = int, help="Number of non-SPH Planets")
+    parser.add_argument("-s", "--nsnapshots",dest="numss",    default=numss,  type = int, help="Number of Snapshots")
+    parser.add_argument("-k", "--numskip",   dest="nskip",    default=1,      type = int, help="Snapshot Interval")
+    parser.add_argument("-z", "--startnum",  dest="nstart",   default=nstart, type = int, help="Starting Snapshot")
+    parser.add_argument("-r", "--restart",   dest="restart",  default=rund,   help="Restart", action="store_true")
+    parser.add_argument("-b", "--projectdir",dest="bdir",     default=base,   help="Project Directory")
+    parser.add_argument("-d", "--rundir",    dest="rdir",     default=rund,   help="Run Directory")
+    parser.add_argument("-d2","--mdir",      dest="mdir",     default=mdir,   help="N-Body Run Directory")
+    parser.add_argument("-rf","--restartf",  dest="rname",    default=rname,  help="Restart file name")
+
+    args = parser.parse_args()
+
+    # Set default values
+    args.sdir = args.bdir + args.rdir# + "SS/"                          #sets folder for snapshots
+    args.idir = args.bdir + args.rdir + 'IMG/'                          #sets folder for images
+    args.fdir = args.bdir + args.rdir + 'Final/'                        #sets folder for final plots
+
+    #If numss is default (-1), then automatically find number of snapshots
+    if args.numss < 0: args.numss = findSnapshotCount(args.sdir,args.nskip)
+
+    return args
+
+
+
+# Finds and returns the number of appropriate sph files in the source directory
+def findSnapshotCount(f, nskip):
+
+    numss = 0
+    fname = f + 'out000' + repr(numss) + '.sph'
+    if numss >= 10:   fname = f + 'out00' + repr(numss) + '.sph'
+    if numss >= 100:  fname = f + 'out0'  + repr(numss) + '.sph'
+    if numss >= 1000: fname = f + 'out'   + repr(numss) + '.sph'
+    while os.path.exists(fname):
+        numss += nskip
+        fname = f + 'out000' + repr(numss) + '.sph'
+        if numss >= 10:   fname = f + 'out00' + repr(numss) + '.sph'
+        if numss >= 100:  fname = f + 'out0'  + repr(numss) + '.sph'
+        if numss >= 1000: fname = f + 'out'   + repr(numss) + '.sph'
+    print 'there are ', numss, ' snapshots in this run'
+
+    return numss
+
+
+
+# Create directories as needed; return an error if source directory does not exist
+def createFolders(args):
+
+    if not os.path.exists(args.sdir):
+        print 'source directory does not exist'
+        sys.exit
+    if not os.path.exists(args.idir): os.makedirs(args.idir)
+    if not os.path.exists(args.fdir): os.makedirs(args.fdir)
 
 
 
 
-
-
+if __name__ == "__main__":
+    main()
 
 
 
